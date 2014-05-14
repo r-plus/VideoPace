@@ -1,7 +1,7 @@
 #import <AVFoundation/AVFoundation.h>
 
 static float rateFactor;
-static float inverseRateFactor;
+static float inverseRateFactor = 1.0f;
 
 %hook AVPlayer
 
@@ -20,15 +20,18 @@ static float inverseRateFactor;
 static void LoadSettings(void)
 {
     NSDictionary *settings = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/com.rpetrich.videopace.plist"];
-    id temp = [settings objectForKey:@"VPRateFactor"];
-    rateFactor = temp ? [temp floatValue] : 1.3f;
-    inverseRateFactor = 1.0f / rateFactor;
+    NSString *bundleIdentifier = [NSBundle mainBundle].bundleIdentifier;
+    if (bundleIdentifier) {
+        id temp = [settings objectForKey:[@"VP-" stringByAppendingString:bundleIdentifier]];
+        rateFactor = temp ? [temp floatValue] : 1.0f;
+        inverseRateFactor = 1.0f / rateFactor;
+    }
 }
 
 %ctor {
-    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    %init();
-    LoadSettings();
-    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (void *)LoadSettings, CFSTR("com.rpetrich.videopace.settingschanged"), NULL, CFNotificationSuspensionBehaviorCoalesce);
-    [pool drain];
+    @autoreleasepool {
+        %init();
+        LoadSettings();
+        CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (void *)LoadSettings, CFSTR("com.rpetrich.videopace.settingschanged"), NULL, CFNotificationSuspensionBehaviorCoalesce);
+    }
 }
